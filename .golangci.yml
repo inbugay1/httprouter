@@ -1,0 +1,18 @@
+linters:
+  disable-all: false
+  enable-all: true
+  disable:
+    - gochecknoglobals
+    - gochecknoinits
+    - godox
+    - gomnd
+    - lll
+    - nakedret
+    - wsl
+    - goerr113
+    - exhaustivestruct
+    - tagliatelle
+    - gofumpt
+    - goimports
+
+    - forcetypeassert
