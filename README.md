@@ -59,7 +59,7 @@ package handler
 import (
 	"net/http"
 
-	"getting-started/internal/httprouter"
+	"github.com/inbugay1/httprouter"
 	"github.com/sirupsen/logrus"
 )
 
@@ -67,7 +67,7 @@ func Test(logger *logrus.Logger) httprouter.Handler {
 	handler := func(responseWriter http.ResponseWriter, request *http.Request) error {
 		logger.Info("Some useful message could be here...")
 		
-		responseWriter.Header().Set(httphelper.HeaderContentType, httphelper.ContentTypeJSONUTF8)
+		responseWriter.Header().Set(httphelper.HeaderContentType, "application/json")
 
 		_, _ = responseWriter.Write([]byte("OK"))
 		
@@ -84,7 +84,7 @@ func main() {
 	
 	logger := &logrus.Logger{}
 
-	router.Get("/hello", handler.Test(logger))
+	router.Get("/test", handler.Test(logger))
 
 	_ = http.ListenAndServe(":9015", router)
 }
@@ -99,7 +99,6 @@ package handler
 import (
 	"net/http"
 
-	"getting-started/internal/httphelper"
 	"github.com/sirupsen/logrus"
 )
 
@@ -109,7 +108,7 @@ type Test struct {
 
 func (h *Test) Handle(responseWriter http.ResponseWriter, request *http.Request) error {
 	h.Logger.Info("Some useful message could be here...")
-	responseWriter.Header().Set(httphelper.HeaderContentType, httphelper.ContentTypeJSONUTF8)
+	responseWriter.Header().Set(httphelper.HeaderContentType, "application/json")
 
 	_, _ = responseWriter.Write([]byte("OK"))
 
@@ -123,7 +122,7 @@ func main() {
 	
 	logger := &logrus.Logger{}
 
-	router.Get("/hello", &handler.Test{Logger: logger})
+	router.Get("/test", &handler.Test{Logger: logger})
 
 	_ = http.ListenAndServe(":9015", router)
 }
@@ -171,7 +170,7 @@ package middleware
 import (
 	"net/http"
 
-	"getting-started/internal/httprouter"
+	"github.com/inbugay1/httprouter"
 	"github.com/sirupsen/logrus"
 )
 
@@ -209,7 +208,7 @@ func main() {
 
 	middleware := middleware.Test(logger)
 
-	router.Get("/hello", middleware(&handler.Test{Logger: logger}))
+	router.Get("/test", middleware(&handler.Test{Logger: logger}))
 
 	_ = http.ListenAndServe(":9015", router)
 }
