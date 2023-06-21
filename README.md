@@ -1,3 +1,4 @@
+![Coverage](https://raw.githubusercontent.com/inbugay1/httprouter/6439c5e607ffcfb95398aec1895d96871f98018b/badge.svg)
 # HTTP Router
 
 Just another simple http router with middleware and error handling support.
