@@ -47,11 +47,12 @@ func makeMiddleware(content string) httprouter.MiddlewareFunc {
 func TestRouterMatch(t *testing.T) { //nolint:funlen
 	t.Parallel()
 
-	t.Run("exact", func(t *testing.T) {
+	t.Run("match exact", func(t *testing.T) {
 		t.Parallel()
 
 		router := httprouter.New()
 		router.Get("/test", makeHandlerWithResponseContent("test"))
+		router.Post("/test", makeHandlerWithResponseContent("test"))
 
 		request := httptest.NewRequest(http.MethodGet, "/test", nil)
 		responseWriter := httptest.NewRecorder()
@@ -61,13 +62,23 @@ func TestRouterMatch(t *testing.T) { //nolint:funlen
 			_ = handler.Handle(responseWriter, request)
 			assert.Equal(t, "test", responseWriter.Body.String())
 		}
+
+		request = httptest.NewRequest(http.MethodPost, "/test", nil)
+		responseWriter = httptest.NewRecorder()
+
+		handler, err = router.Match(request)
+		if assert.NoError(t, err) {
+			_ = handler.Handle(responseWriter, request)
+			assert.Equal(t, "test", responseWriter.Body.String())
+		}
 	})
 
-	t.Run("regex", func(t *testing.T) {
+	t.Run("match regex", func(t *testing.T) {
 		t.Parallel()
 
 		router := httprouter.New()
 		router.Get(`/test/{id:\d+}`, makeHandlerWithResponseContent("test"))
+		router.Post(`/test/{id:\d+}`, makeHandlerWithResponseContent("test"))
 
 		request := httptest.NewRequest(http.MethodGet, "/test/1", nil)
 		responseWriter := httptest.NewRecorder()
@@ -79,9 +90,20 @@ func TestRouterMatch(t *testing.T) { //nolint:funlen
 		}
 
 		assert.Equal(t, "1", httprouter.RouteParam(request.Context(), "id"))
+
+		request = httptest.NewRequest(http.MethodPost, "/test/1", nil)
+		responseWriter = httptest.NewRecorder()
+
+		handler, err = router.Match(request)
+		if assert.NoError(t, err) {
+			_ = handler.Handle(responseWriter, request)
+			assert.Equal(t, "test", responseWriter.Body.String())
+		}
+
+		assert.Equal(t, "1", httprouter.RouteParam(request.Context(), "id"))
 	})
 
-	t.Run("not found", func(t *testing.T) {
+	t.Run("match not found error", func(t *testing.T) {
 		t.Parallel()
 
 		router := httprouter.New()
@@ -93,7 +115,7 @@ func TestRouterMatch(t *testing.T) { //nolint:funlen
 		assert.EqualError(t, err, httprouter.ErrRouteNotFound.Error())
 	})
 
-	t.Run("method not allowed", func(t *testing.T) {
+	t.Run("match method not allowed error", func(t *testing.T) {
 		t.Parallel()
 
 		router := httprouter.New()
@@ -111,7 +133,7 @@ func TestRouterMatch(t *testing.T) { //nolint:funlen
 		assert.EqualError(t, err, httprouter.ErrMethodNotAllowed.Error())
 	})
 
-	t.Run("invalid route regex", func(t *testing.T) {
+	t.Run("match invalid route regex error", func(t *testing.T) {
 		t.Parallel()
 
 		router := httprouter.New()
@@ -185,6 +207,45 @@ func TestRouterAny(t *testing.T) {
 	}
 }
 
+func TestRouterWithPrefix(t *testing.T) {
+	t.Parallel()
+
+	router := httprouter.New()
+	router.WithPrefix("foo")
+
+	router.Get("/bar", makeDummyHandler())
+
+	request := httptest.NewRequest(http.MethodGet, "/foo/bar", nil)
+
+	_, err := router.Match(request)
+	assert.NoError(t, err)
+}
+
+func TestRouterGroupWithPrefix(t *testing.T) {
+	t.Parallel()
+
+	router := httprouter.New()
+	router.WithPrefix("foo")
+
+	router.Group(func(router httprouter.Router) {
+		router.WithPrefix("bar")
+
+		router.Get("/baz", makeDummyHandler())
+	})
+
+	router.Get("/qux", makeDummyHandler())
+
+	request := httptest.NewRequest(http.MethodGet, "/foo/bar/baz", nil)
+
+	_, err := router.Match(request)
+	assert.NoError(t, err)
+
+	request = httptest.NewRequest(http.MethodGet, "/foo/qux", nil)
+
+	_, err = router.Match(request)
+	assert.NoError(t, err)
+}
+
 func TestRouterUse(t *testing.T) {
 	t.Parallel()
 
@@ -208,7 +269,7 @@ func TestRouterUse(t *testing.T) {
 	}
 }
 
-func TestRouterGroup(t *testing.T) {
+func TestRouterGroupUse(t *testing.T) {
 	t.Parallel()
 
 	router := httprouter.New()

@@ -24,6 +24,7 @@ type Router interface {
 
 	Group(callback func(r Router))
 	Use(middlewares ...MiddlewareFunc)
+	WithPrefix(prefix string)
 }
 ````
 
@@ -320,6 +321,49 @@ func main() {
 
 			return nil
 		}))
+
+	_ = http.ListenAndServe(":9015", router)
+}
+````
+
+### Router WithPrefix method
+
+Sometimes you want to group routes and apply a common prefix to them to avoid its repeating
+
+````
+func main() {
+	router := httprouter.New()
+
+	listHandler := httprouter.HandlerFunc(
+		func(responseWriter http.ResponseWriter, request *http.Request) error {
+			_, _ = responseWriter.Write([]byte("users list"))
+
+			return nil
+		})
+
+	showHandler := httprouter.HandlerFunc(
+		func(responseWriter http.ResponseWriter, request *http.Request) error {
+			_, _ = responseWriter.Write([]byte("user " + httprouter.RouteParam(request.Context(), "id")))
+
+			return nil
+		})
+
+	createHandler := httprouter.HandlerFunc(
+		func(responseWriter http.ResponseWriter, request *http.Request) error {
+			_, _ = responseWriter.Write([]byte("create user"))
+
+			return nil
+		})
+
+	router.WithPrefix("api")
+
+	router.Group(func(router httprouter.Router) {
+		router.WithPrefix("users")
+
+		router.Get(`/{id:\d+}`, showHandler) // GET http://localhost:9015/api/users/1
+		router.Post("", createHandler) // POST http://localhost:9015/api/users
+		router.Get("", listHandler)  // GET http://localhost:9015/api/users
+	})
 
 	_ = http.ListenAndServe(":9015", router)
 }

@@ -24,12 +24,14 @@ type Router interface {
 
 	Group(callback func(r Router))
 	Use(middlewares ...MiddlewareFunc)
+	WithPrefix(prefix string)
 }
 
 type router struct {
 	routes     []*Route
 	re         *regexp.Regexp
 	middleware MiddlewareFunc
+	prefix     string
 
 	NotFoundHandler Handler
 }
@@ -53,6 +55,10 @@ func contains(s []string, e string) bool {
 func (r *router) route(path string, methods []string, handler Handler) {
 	if r.middleware != nil {
 		handler = r.middleware(handler)
+	}
+
+	if r.prefix != "" {
+		path = "/" + r.prefix + path
 	}
 
 	r.routes = append(r.routes, &Route{path: path, methods: methods, handler: handler})
@@ -100,11 +106,13 @@ func (r *router) Any(path string, methods []string, handler Handler) {
 
 func (r *router) Group(callback func(r Router)) {
 	routerMiddleware := r.middleware
+	routerPrefix := r.prefix
 
 	callback(r)
 
-	// remove group middleware
+	// remove group middleware and prefix
 	r.middleware = routerMiddleware
+	r.prefix = routerPrefix
 }
 
 // Use
@@ -129,14 +137,28 @@ func (r *router) Use(middlewares ...MiddlewareFunc) {
 	}
 }
 
+func (r *router) WithPrefix(prefix string) {
+	if r.prefix != "" {
+		r.prefix += "/" + prefix
+
+		return
+	}
+
+	r.prefix = prefix
+}
+
 func (r *router) Match(request *http.Request) (Handler, error) { //nolint:ireturn
+	methodNotAllowed := false
+
 	for _, route := range r.routes {
 		if route.path == request.URL.Path {
-			if !contains(route.methods, request.Method) {
-				return nil, ErrMethodNotAllowed
+			if contains(route.methods, request.Method) {
+				return route.handler, nil
 			}
 
-			return route.handler, nil
+			methodNotAllowed = true
+
+			continue
 		}
 
 		pathRegexStr := r.re.ReplaceAllString(route.path, "(?P<$1>$2$)") // e.g modify /test/{id:\d+} to /test/(?P<id>\d+$)
@@ -150,7 +172,9 @@ func (r *router) Match(request *http.Request) (Handler, error) { //nolint:iretur
 		}
 
 		if !contains(route.methods, request.Method) {
-			return nil, ErrMethodNotAllowed
+			methodNotAllowed = true
+
+			continue
 		}
 
 		matches := pathRegex.FindAllStringSubmatch(request.URL.Path, -1)
@@ -166,6 +190,10 @@ func (r *router) Match(request *http.Request) (Handler, error) { //nolint:iretur
 		*request = *request.WithContext(ctx)
 
 		return route.handler, nil
+	}
+
+	if methodNotAllowed {
+		return nil, ErrMethodNotAllowed
 	}
 
 	return nil, ErrRouteNotFound
