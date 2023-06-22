@@ -35,7 +35,7 @@ It also implements net/http Handler interface and can be used as net/http server
 
 ````
 func main() {
-	router := httprouter.NewRouter()
+	router := httprouter.New()
 
 	helloHandler := func(responseWriter http.ResponseWriter, request *http.Request) error {
 		_, _ = responseWriter.Write([]byte("Hello World!"))
@@ -81,7 +81,7 @@ func Test(logger *logrus.Logger) httprouter.Handler {
 
 ````
 func main() {
-	router := httprouter.NewRouter()
+	router := httprouter.New()
 	
 	logger := &logrus.Logger{}
 
@@ -119,7 +119,7 @@ func (h *Test) Handle(responseWriter http.ResponseWriter, request *http.Request)
 
 ````
 func main() {
-	router := httprouter.NewRouter()
+	router := httprouter.New()
 	
 	logger := &logrus.Logger{}
 
@@ -133,7 +133,7 @@ func main() {
 
 ````
 func main() {
-	router := httprouter.NewRouter()
+	router := httprouter.New()
 
 	helloHandler := httprouter.HandlerFunc(
 		func(responseWriter http.ResponseWriter, request *http.Request) error {
@@ -203,7 +203,7 @@ func Test(logger *logrus.Logger) httprouter.MiddlewareFunc {
 
 ````
 func main() {
-	router := httprouter.NewRouter()
+	router := httprouter.New()
 
 	logger := &logrus.Logger{}
 
@@ -232,7 +232,7 @@ You can try the Use method to apply a middleware to several handlers:
 
 ````
 func main() {
-	router := httprouter.NewRouter()
+	router := httprouter.New()
 
 	helloHandler := httprouter.HandlerFunc(
 		func(responseWriter http.ResponseWriter, request *http.Request) error {
@@ -277,7 +277,7 @@ With the Group method you can easily do this:
 
 ````
 func main() {
-	router := httprouter.NewRouter()
+	router := httprouter.New()
 
 	helloHandler := httprouter.HandlerFunc(
 		func(responseWriter http.ResponseWriter, request *http.Request) error {
@@ -331,7 +331,7 @@ Easy peasy
 
 ````
 func main() {
-	router := httprouter.NewRouter()
+	router := httprouter.New()
 
 	notFoundHandler := func(responseWriter http.ResponseWriter, request *http.Request) error {
 		_, _ = responseWriter.Write([]byte("Oops... we cannot find what you want :'("))
@@ -359,7 +359,7 @@ HTTP router supports parameterized routes
 
 ````
 func main() {
-	router := httprouter.NewRouter()
+	router := httprouter.New()
 
 	helloHandler := func(responseWriter http.ResponseWriter, request *http.Request) error {
 		name := httprouter.RouteParam(request.Context(), "name")

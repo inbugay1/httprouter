@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	router := httprouter.NewRouter()
+	router := httprouter.New()
 
 	helloHandler := func(responseWriter http.ResponseWriter, request *http.Request) error {
 		_, _ = responseWriter.Write([]byte("Hello World!"))

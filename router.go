@@ -34,7 +34,7 @@ type router struct {
 	NotFoundHandler Handler
 }
 
-func NewRouter() *router { //nolint:golint,revive
+func New() *router { //nolint:golint,revive
 	return &router{
 		re: regexp.MustCompile(`{(?P<param>\w+):(?P<regex>.+)}`),
 	}
@@ -142,7 +142,7 @@ func (r *router) Match(request *http.Request) (Handler, error) { //nolint:iretur
 		pathRegexStr := r.re.ReplaceAllString(route.path, "(?P<$1>$2$)") // e.g modify /test/{id:\d+} to /test/(?P<id>\d+$)
 		pathRegex, err := regexp.Compile("^" + pathRegexStr + "$")
 		if err != nil {
-			return nil, fmt.Errorf("httprouter, httprouter.Match, regexp.Compile, err: %w", err)
+			return nil, fmt.Errorf("invalid route regex: %s, %w", pathRegexStr, err)
 		}
 
 		if !pathRegex.MatchString(request.URL.Path) {
