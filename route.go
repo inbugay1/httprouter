@@ -1,6 +1,9 @@
 package httprouter
 
-import "context"
+import (
+	"context"
+	"regexp"
+)
 
 type ctxKey int
 
@@ -15,9 +18,10 @@ func RouteParam(ctx context.Context, param string) string {
 	return routeParams[param]
 }
 
-type Route struct {
-	path    string
-	methods []string
+type route struct {
+	path      string
+	pathRegex *regexp.Regexp
+	methods   []string
 
 	handler Handler
 }

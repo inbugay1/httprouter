@@ -10,31 +10,40 @@ import (
 func TestRouteParam(t *testing.T) {
 	t.Parallel()
 
-	t.Run("get empty string because of invalid map type assertion", func(t *testing.T) {
-		t.Parallel()
+	testCases := []struct {
+		name           string
+		ctx            context.Context //nolint:containedctx
+		param          string
+		expectedResult string
+	}{
+		{
+			name:           "ValidParam",
+			ctx:            context.WithValue(context.Background(), routeParamsKey, map[string]string{"id": "123"}),
+			param:          "id",
+			expectedResult: "123",
+		},
+		{
+			name:           "InvalidParam",
+			ctx:            context.WithValue(context.Background(), routeParamsKey, map[string]string{"id": "123"}),
+			param:          "name",
+			expectedResult: "",
+		},
+		{
+			name:           "NoContextValue",
+			ctx:            context.Background(),
+			param:          "id",
+			expectedResult: "",
+		},
+	}
 
-		ctx := context.WithValue(context.Background(), routeParamsKey, nil)
+	for _, testCase := range testCases {
+		testCase := testCase
 
-		assert.Equal(t, "", RouteParam(ctx, "test"))
-	})
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
 
-	t.Run("get empty string by non-existing key", func(t *testing.T) {
-		t.Parallel()
-
-		ctx := context.WithValue(context.Background(), routeParamsKey, map[string]string{})
-
-		assert.Equal(t, "", RouteParam(ctx, "test"))
-	})
-
-	t.Run("get value by existing key", func(t *testing.T) {
-		t.Parallel()
-
-		params := map[string]string{
-			"key": "value",
-		}
-
-		ctx := context.WithValue(context.Background(), routeParamsKey, params)
-
-		assert.Equal(t, "value", RouteParam(ctx, "key"))
-	})
+			result := RouteParam(testCase.ctx, testCase.param)
+			assert.Equal(t, testCase.expectedResult, result, "Result mismatch")
+		})
+	}
 }

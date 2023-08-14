@@ -3,7 +3,6 @@ package httprouter
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"regexp"
 )
@@ -28,7 +27,7 @@ type Router interface {
 }
 
 type router struct {
-	routes     []*Route
+	routes     []*route
 	re         *regexp.Regexp
 	middleware MiddlewareFunc
 	prefix     string
@@ -57,11 +56,25 @@ func (r *router) route(path string, methods []string, handler Handler) {
 		handler = r.middleware(handler)
 	}
 
-	if r.prefix != "" {
-		path = "/" + r.prefix + path
+	newRoute := &route{methods: methods, handler: handler}
+
+	if r.re.MatchString(path) {
+		pathRegexStr := r.re.ReplaceAllString(path, "(?P<$1>$2)") // e.g modify /test/{id:\d+} to /test/(?P<id>\d+)
+
+		if r.prefix != "" {
+			pathRegexStr = "/" + r.prefix + pathRegexStr
+		}
+
+		newRoute.pathRegex = regexp.MustCompile("^" + pathRegexStr + "$")
+	} else {
+		if r.prefix != "" {
+			path = "/" + r.prefix + path
+		}
+
+		newRoute.path = path
 	}
 
-	r.routes = append(r.routes, &Route{path: path, methods: methods, handler: handler})
+	r.routes = append(r.routes, newRoute)
 }
 
 func (r *router) Get(path string, handler Handler) {
@@ -151,23 +164,21 @@ func (r *router) Match(request *http.Request) (Handler, error) { //nolint:iretur
 	methodNotAllowed := false
 
 	for _, route := range r.routes {
-		if route.path == request.URL.Path {
-			if contains(route.methods, request.Method) {
-				return route.handler, nil
-			}
+		if route.path != "" {
+			if route.path == request.URL.Path {
+				if contains(route.methods, request.Method) {
+					return route.handler, nil
+				}
 
-			methodNotAllowed = true
+				methodNotAllowed = true
+
+				continue
+			}
 
 			continue
 		}
 
-		pathRegexStr := r.re.ReplaceAllString(route.path, "(?P<$1>$2$)") // e.g modify /test/{id:\d+} to /test/(?P<id>\d+$)
-		pathRegex, err := regexp.Compile("^" + pathRegexStr + "$")
-		if err != nil {
-			return nil, fmt.Errorf("invalid route regex: %s, %w", pathRegexStr, err)
-		}
-
-		if !pathRegex.MatchString(request.URL.Path) {
+		if route.pathRegex == nil || !route.pathRegex.MatchString(request.URL.Path) {
 			continue
 		}
 
@@ -177,9 +188,9 @@ func (r *router) Match(request *http.Request) (Handler, error) { //nolint:iretur
 			continue
 		}
 
-		matches := pathRegex.FindAllStringSubmatch(request.URL.Path, -1)
+		matches := route.pathRegex.FindAllStringSubmatch(request.URL.Path, -1)
 
-		routeParamNames := pathRegex.SubexpNames()
+		routeParamNames := route.pathRegex.SubexpNames()
 		routeParams := make(map[string]string, len(routeParamNames))
 
 		for paramKey, paramName := range routeParamNames {
@@ -215,8 +226,6 @@ func (r *router) ServeHTTP(responseWriter http.ResponseWriter, request *http.Req
 				return
 			}
 			http.NotFound(responseWriter, request)
-		default:
-			http.Error(responseWriter, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		}
 
 		return
