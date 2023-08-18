@@ -1,4 +1,5 @@
 ![Coverage](https://raw.githubusercontent.com/inbugay1/httprouter/6439c5e607ffcfb95398aec1895d96871f98018b/badge.svg)
+
 # HTTP Router
 
 Just another simple http router with middleware and error handling support.
@@ -32,6 +33,28 @@ It also implements net/http Handler interface and can be used as net/http server
 
 ## Examples
 
+### Route matching
+
+By default, router supports literal matching of the URI path with LiteralRoute.
+By registering RegexRouteFactory you can use RegexRoute that utilizes a regular expression to match against the URI
+path.
+
+````
+func main() {
+	router := httprouter.New(httprouter.NewRegexRouteFactory())
+    
+	helloHandler := func(responseWriter http.ResponseWriter, request *http.Request) error {
+	    _, _ = responseWriter.Write([]byte("Hello!"))
+	    
+		return nil
+	}
+
+	router.Get(`/hello/{name:[a-z]+}`, httprouter.HandlerFunc(helloHandler))
+
+	_ = http.ListenAndServe(":9015", router)
+}
+````
+
 ### Closure handler
 
 ````
@@ -52,7 +75,8 @@ func main() {
 
 ### Non closure handler
 
-Often your handlers will be located in their own package and will need some dependencies like logger, repositories and so on.
+Often your handlers will be located in their own package and will need some dependencies like logger, repositories and
+so on.
 For sure, you can achieve that by using closure handler like this:
 
 ````
@@ -92,7 +116,7 @@ func main() {
 }
 ````
 
-But with these functions, closures and HandlerFunc wrap it looks a bit cumbersome. 
+But with these functions, closures and HandlerFunc wrap it looks a bit cumbersome.
 A better approach probably would be to define a struct that implements httprouter.Handler interface:
 
 ````
@@ -135,7 +159,7 @@ func main() {
 ````
 func main() {
 	router := httprouter.New()
-
+    
 	helloHandler := httprouter.HandlerFunc(
 		func(responseWriter http.ResponseWriter, request *http.Request) error {
 			_, _ = responseWriter.Write([]byte("Hello "))
@@ -163,7 +187,7 @@ func main() {
 }
 ````
 
-When you create a middleware you will probably want to place it in its own package and like for handlers 
+When you create a middleware you will probably want to place it in its own package and like for handlers
 you can define a struct and implement httprouter.Handler interface:
 
 ````
@@ -205,7 +229,7 @@ func Test(logger *logrus.Logger) httprouter.MiddlewareFunc {
 ````
 func main() {
 	router := httprouter.New()
-
+    
 	logger := &logrus.Logger{}
 
 	middleware := middleware.Test(logger)
@@ -224,7 +248,9 @@ It takes a list of middlewares and wrap a handler:
 Router.Use(middleware1, middleware2)
 Router.Get("/hello", helloHandler)
 ````
+
 It will be the same as:
+
 ````
 Router.Get("/hello", middleware1(middleware2(helloHandler)))
 ````
@@ -234,7 +260,7 @@ You can try the Use method to apply a middleware to several handlers:
 ````
 func main() {
 	router := httprouter.New()
-
+    
 	helloHandler := httprouter.HandlerFunc(
 		func(responseWriter http.ResponseWriter, request *http.Request) error {
 			_, _ = responseWriter.Write([]byte("Hello "))
@@ -273,13 +299,14 @@ func main() {
 ````
 
 ### Router Group method
+
 Sometimes you may find yourself wanting to group routes in order to apply a middleware to them.
 With the Group method you can easily do this:
 
 ````
 func main() {
 	router := httprouter.New()
-
+    
 	helloHandler := httprouter.HandlerFunc(
 		func(responseWriter http.ResponseWriter, request *http.Request) error {
 			_, _ = responseWriter.Write([]byte("Hello "))
@@ -332,8 +359,8 @@ Sometimes you want to group routes and apply a common prefix to them to avoid it
 
 ````
 func main() {
-	router := httprouter.New()
-
+	router := httprouter.New(httprouter.NewRegexRouteFactory())
+    
 	listHandler := httprouter.HandlerFunc(
 		func(responseWriter http.ResponseWriter, request *http.Request) error {
 			_, _ = responseWriter.Write([]byte("users list"))
@@ -376,7 +403,7 @@ Easy peasy
 ````
 func main() {
 	router := httprouter.New()
-
+    
 	notFoundHandler := func(responseWriter http.ResponseWriter, request *http.Request) error {
 		_, _ = responseWriter.Write([]byte("Oops... we cannot find what you want :'("))
 
@@ -403,8 +430,8 @@ HTTP router supports parameterized routes
 
 ````
 func main() {
-	router := httprouter.New()
-
+	router := httprouter.New(httprouter.NewRegexRouteFactory())
+    
 	helloHandler := func(responseWriter http.ResponseWriter, request *http.Request) error {
 		name := httprouter.RouteParam(request.Context(), "name")
 

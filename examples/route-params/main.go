@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	router := httprouter.New()
+	router := httprouter.New(httprouter.NewRegexRouteFactory())
 
 	helloHandler := func(responseWriter http.ResponseWriter, request *http.Request) error {
 		name := httprouter.RouteParam(request.Context(), "name")

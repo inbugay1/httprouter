@@ -2,8 +2,12 @@ package httprouter
 
 import (
 	"context"
-	"regexp"
+	"net/http"
 )
+
+type Route interface {
+	Match(request *http.Request) (Handler, error)
+}
 
 type ctxKey int
 
@@ -18,10 +22,12 @@ func RouteParam(ctx context.Context, param string) string {
 	return routeParams[param]
 }
 
-type route struct {
-	path      string
-	pathRegex *regexp.Regexp
-	methods   []string
+func contains(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
 
-	handler Handler
+	return false
 }

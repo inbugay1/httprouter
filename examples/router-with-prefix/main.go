@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	router := httprouter.New()
+	router := httprouter.New(httprouter.NewRegexRouteFactory())
 
 	listHandler := httprouter.HandlerFunc(
 		func(responseWriter http.ResponseWriter, request *http.Request) error {

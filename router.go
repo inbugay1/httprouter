@@ -1,10 +1,8 @@
 package httprouter
 
 import (
-	"context"
 	"errors"
 	"net/http"
-	"regexp"
 )
 
 type Router interface {
@@ -27,28 +25,37 @@ type Router interface {
 }
 
 type router struct {
-	routes     []*route
-	re         *regexp.Regexp
-	middleware MiddlewareFunc
-	prefix     string
+	routes            []Route
+	routeFactoriesSet map[string]struct{}
+	routeFactories    []RouteFactory
+	middleware        MiddlewareFunc
+	prefix            string
 
 	NotFoundHandler Handler
 }
 
-func New() *router { //nolint:golint,revive
-	return &router{
-		re: regexp.MustCompile(`{(?P<param>\w+):(?P<regex>.+)}`),
+func New(routeFactories ...RouteFactory) *router { //nolint:golint,revive
+	router := &router{
+		routeFactoriesSet: make(map[string]struct{}),
 	}
+
+	for _, routeFactory := range routeFactories {
+		router.registerRouteFactory(routeFactory)
+	}
+
+	router.registerRouteFactory(NewLiteralRouteFactory())
+
+	return router
 }
 
-func contains(s []string, e string) bool {
-	for _, a := range s {
-		if a == e {
-			return true
-		}
+func (r *router) registerRouteFactory(routeFactory RouteFactory) {
+	if _, ok := r.routeFactoriesSet[routeFactory.Name()]; ok {
+		return
 	}
 
-	return false
+	r.routeFactoriesSet[routeFactory.Name()] = struct{}{}
+
+	r.routeFactories = append(r.routeFactories, routeFactory)
 }
 
 func (r *router) route(path string, methods []string, handler Handler) {
@@ -56,25 +63,18 @@ func (r *router) route(path string, methods []string, handler Handler) {
 		handler = r.middleware(handler)
 	}
 
-	newRoute := &route{methods: methods, handler: handler}
-
-	if r.re.MatchString(path) {
-		pathRegexStr := r.re.ReplaceAllString(path, "(?P<$1>$2)") // e.g modify /test/{id:\d+} to /test/(?P<id>\d+)
-
-		if r.prefix != "" {
-			pathRegexStr = "/" + r.prefix + pathRegexStr
-		}
-
-		newRoute.pathRegex = regexp.MustCompile("^" + pathRegexStr + "$")
-	} else {
-		if r.prefix != "" {
-			path = "/" + r.prefix + path
-		}
-
-		newRoute.path = path
+	if r.prefix != "" {
+		path = "/" + r.prefix + path
 	}
 
-	r.routes = append(r.routes, newRoute)
+	for _, routeFactory := range r.routeFactories {
+		if routeFactory.Handles(path) {
+			route := routeFactory.CreateRoute(path, methods, handler)
+			r.routes = append(r.routes, route)
+
+			return
+		}
+	}
 }
 
 func (r *router) Get(path string, handler Handler) {
@@ -161,46 +161,26 @@ func (r *router) WithPrefix(prefix string) {
 }
 
 func (r *router) Match(request *http.Request) (Handler, error) { //nolint:ireturn
-	methodNotAllowed := false
+	var methodNotAllowed bool
 
 	for _, route := range r.routes {
-		if route.path != "" {
-			if route.path == request.URL.Path {
-				if contains(route.methods, request.Method) {
-					return route.handler, nil
-				}
-
+		handler, err := route.Match(request)
+		if err != nil {
+			switch {
+			case errors.Is(err, ErrPathMismatch):
+				continue
+			case errors.Is(err, ErrMethodNotAllowed):
 				methodNotAllowed = true
 
 				continue
 			}
 
-			continue
+			return nil, err //nolint:wrapcheck
 		}
 
-		if route.pathRegex == nil || !route.pathRegex.MatchString(request.URL.Path) {
-			continue
+		if handler != nil {
+			return handler, nil
 		}
-
-		if !contains(route.methods, request.Method) {
-			methodNotAllowed = true
-
-			continue
-		}
-
-		matches := route.pathRegex.FindAllStringSubmatch(request.URL.Path, -1)
-
-		routeParamNames := route.pathRegex.SubexpNames()
-		routeParams := make(map[string]string, len(routeParamNames))
-
-		for paramKey, paramName := range routeParamNames {
-			routeParams[paramName] = matches[0][paramKey]
-		}
-
-		ctx := context.WithValue(request.Context(), routeParamsKey, routeParams)
-		*request = *request.WithContext(ctx)
-
-		return route.handler, nil
 	}
 
 	if methodNotAllowed {

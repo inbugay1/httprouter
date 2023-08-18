@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/inbugay1/httprouter" // Import the correct package path
+	"github.com/inbugay1/httprouter" // Import the correct package Path
 	"github.com/stretchr/testify/assert"
 )
 
@@ -17,6 +17,64 @@ type mockHandler struct {
 
 func (h *mockHandler) Handle(_ http.ResponseWriter, _ *http.Request) error {
 	return h.errToReturn
+}
+
+type MockRouteFactory struct {
+	CalledHandles     bool
+	CalledCreateRoute bool
+	MockRouteErr      error
+}
+
+func (m *MockRouteFactory) Name() string {
+	return "mock"
+}
+
+func (m *MockRouteFactory) Handles(_ string) bool {
+	m.CalledHandles = true
+
+	return true
+}
+
+func (m *MockRouteFactory) CreateRoute(path string, methods []string, handler httprouter.Handler) httprouter.Route {
+	m.CalledCreateRoute = true
+
+	return &MockRoute{Path: path, Methods: methods, Handler: handler, ErrToReturn: m.MockRouteErr}
+}
+
+type MockRoute struct {
+	Path        string
+	Methods     []string
+	Handler     httprouter.Handler
+	ErrToReturn error
+}
+
+func (r *MockRoute) Match(_ *http.Request) (httprouter.Handler, error) {
+	return r.Handler, r.ErrToReturn
+}
+
+func TestRegisterRouteFactory(t *testing.T) {
+	t.Parallel()
+
+	mockRouteFactory := &MockRouteFactory{}
+	anotherRouteMockFactory := &MockRouteFactory{}
+
+	router := httprouter.New(mockRouteFactory, anotherRouteMockFactory)
+
+	handler := httprouter.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+		_, _ = w.Write([]byte("handler called"))
+
+		return nil
+	})
+
+	router.Get("/test", handler)
+
+	// Assert that the mockFactory methods were called.
+	assert.True(t, mockRouteFactory.CalledHandles, "Expected Handles method to be called")
+	assert.True(t, mockRouteFactory.CalledCreateRoute, "Expected CreateRoute method to be called")
+
+	// Assert that the anotherMockFactory methods were not called.
+	assert.False(t, anotherRouteMockFactory.CalledHandles, "Expected Handles method not to be called")
+	assert.False(t, anotherRouteMockFactory.CalledCreateRoute, "Expected CreateRoute method not to be called")
 }
 
 //nolint:funlen,cyclop
@@ -62,10 +120,10 @@ func TestRouter_AllHTTPMethods(t *testing.T) {
 		}
 	}
 
-	// Register all the methods for the router
+	// Register all the Methods for the router
 	handlers := make(map[string]*mockHandler, len(methods))
 
-	// Register all the methods for the router
+	// Register all the Methods for the router
 	for _, method := range methods {
 		routeMethod := getRouteMethodFunction(router, method)
 		route := "/test-" + method
@@ -98,13 +156,13 @@ func TestRouter_Any(t *testing.T) {
 
 	handler := &mockHandler{}
 
-	// Define a path to test
+	// Define a Path to test
 	path := "/test"
 
 	// Add the route using the Any method
 	router.Any(path, []string{http.MethodGet, http.MethodPost}, handler)
 
-	// Test the path with GET and POST methods
+	// Test the Path with GET and POST Methods
 	reqGet, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, path, nil)
 	matchHandlerGet, errGet := router.Match(reqGet)
 	if assert.NoError(t, errGet, "Expected no error for GET") {
@@ -133,37 +191,46 @@ func TestRouter_Match_MethodNotAllowed(t *testing.T) {
 	t.Parallel()
 
 	router := httprouter.New()
+
 	router.Get("/test", &mockHandler{})
-	router.Get("/test/{id:\\d+}", &mockHandler{}) // Regex route
 
-	testCases := []struct {
-		method      string
-		path        string
-		description string
-	}{
-		{method: http.MethodPost, path: "/test", description: "Unsupported method for /test"},
-		{method: http.MethodPost, path: "/test/123", description: "Unsupported method for regex route /test/123"},
-	}
+	request, _ := http.NewRequestWithContext(context.Background(), http.MethodPost, "/test", nil)
 
-	for _, testCase := range testCases {
-		request, _ := http.NewRequestWithContext(context.Background(), testCase.method, testCase.path, nil)
-		_, err := router.Match(request)
-		assert.True(t, errors.Is(err, httprouter.ErrMethodNotAllowed), testCase.description)
-	}
+	_, err := router.Match(request)
+	assert.ErrorIs(t, err, httprouter.ErrMethodNotAllowed, "Unsupported method for /test")
 }
 
-func TestRouter_Match_Regex(t *testing.T) {
+func TestRouter_Match_Error(t *testing.T) {
 	t.Parallel()
 
-	router := httprouter.New()
+	errMockRoute := errors.New("mock route error")
+
+	mockRouteFactory := &MockRouteFactory{
+		MockRouteErr: errMockRoute,
+	}
+	router := httprouter.New(mockRouteFactory)
+
+	router.Get("/test", &mockHandler{})
+
+	request, _ := http.NewRequestWithContext(context.Background(), http.MethodPost, "/test", nil)
+
+	_, err := router.Match(request)
+	assert.ErrorIs(t, err, errMockRoute, "Unsupported method for /test")
+}
+
+func TestRouter_Match_Handler(t *testing.T) {
+	t.Parallel()
 
 	handler := &mockHandler{}
-	router.Get("/test/{id:\\d+}", handler)
 
-	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/test/123", nil)
-	matchHandler, err := router.Match(req)
+	router := httprouter.New(&MockRouteFactory{})
 
-	if assert.NoError(t, err, "Expected no error") {
+	router.Get("/test", handler)
+
+	request, _ := http.NewRequestWithContext(context.Background(), http.MethodPost, "/test", nil)
+
+	matchHandler, err := router.Match(request)
+	if assert.NoError(t, err) {
 		assert.Equal(t, handler, matchHandler, "Handler mismatch")
 	}
 }
@@ -262,17 +329,17 @@ func TestRouter_GroupUse(t *testing.T) {
 	matchHandler, err := router.Match(req)
 
 	if assert.NoError(t, err, "Expected no error") {
-		middlewareOrder = nil             // Reset middleware order
 		_ = matchHandler.Handle(nil, nil) // Trigger middleware execution
 
 		assert.Equal(t, []string{"OutsideMiddleware"}, middlewareOrder, "Middleware order mismatch")
 	}
 
+	middlewareOrder = nil // Reset middleware order
+
 	req, _ = http.NewRequestWithContext(context.Background(), http.MethodGet, "/group-route", nil)
 	matchHandler, err = router.Match(req)
 
 	if assert.NoError(t, err, "Expected no error") {
-		middlewareOrder = nil             // Reset middleware order
 		_ = matchHandler.Handle(nil, nil) // Trigger middleware execution
 
 		assert.Equal(t, []string{"OutsideMiddleware", "GroupMiddleware1", "GroupMiddleware2"}, middlewareOrder, "Middleware order mismatch")
@@ -289,19 +356,10 @@ func TestRouter_WithPrefix(t *testing.T) {
 	// Add a route with a prefix using the WithPrefix method
 	router.WithPrefix("api")
 	router.Get("/test", handler)
-	router.Get("/test/{id:\\d+}", handler)
 
 	// Test the route with the applied prefix
 	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/api/test", nil)
 	matchHandler, err := router.Match(req)
-
-	if assert.NoError(t, err, "Expected no error") {
-		assert.NotNil(t, matchHandler, "Matched handler should not be nil")
-	}
-
-	// Test the route with the applied prefix
-	req, _ = http.NewRequestWithContext(context.Background(), http.MethodGet, "/api/test/123", nil)
-	matchHandler, err = router.Match(req)
 
 	if assert.NoError(t, err, "Expected no error") {
 		assert.NotNil(t, matchHandler, "Matched handler should not be nil")
@@ -382,11 +440,11 @@ func TestRouter_ServeHTTP_RouteFound(t *testing.T) {
 	router.Get("/test", handler)
 
 	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
-	rr := httptest.NewRecorder()
+	recorder := httptest.NewRecorder()
 
-	router.ServeHTTP(rr, req)
+	router.ServeHTTP(recorder, req)
 
-	assert.Equal(t, http.StatusOK, rr.Code, "Status code mismatch")
+	assert.Equal(t, http.StatusOK, recorder.Code, "Status code mismatch")
 }
 
 func TestRouter_ServeHTTP_RouteNotFound(t *testing.T) {
@@ -395,11 +453,11 @@ func TestRouter_ServeHTTP_RouteNotFound(t *testing.T) {
 	router := httprouter.New()
 
 	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/nonexistent", nil)
-	rr := httptest.NewRecorder()
+	recorder := httptest.NewRecorder()
 
-	router.ServeHTTP(rr, req)
+	router.ServeHTTP(recorder, req)
 
-	assert.Equal(t, http.StatusNotFound, rr.Code, "Status code mismatch")
+	assert.Equal(t, http.StatusNotFound, recorder.Code, "Status code mismatch")
 }
 
 func TestRouter_ServeHTTP_InternalServerError_HandlerError(t *testing.T) {
@@ -411,11 +469,11 @@ func TestRouter_ServeHTTP_InternalServerError_HandlerError(t *testing.T) {
 	router.Get("/test", handler)
 
 	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
-	rr := httptest.NewRecorder()
+	recorder := httptest.NewRecorder()
 
-	router.ServeHTTP(rr, req)
+	router.ServeHTTP(recorder, req)
 
-	assert.Equal(t, http.StatusInternalServerError, rr.Code, "Status code mismatch")
+	assert.Equal(t, http.StatusInternalServerError, recorder.Code, "Status code mismatch")
 }
 
 func TestRouter_ServeHTTP_InternalServerError_NotFoundHandlerError(t *testing.T) {
@@ -426,11 +484,11 @@ func TestRouter_ServeHTTP_InternalServerError_NotFoundHandlerError(t *testing.T)
 	router.NotFoundHandler = &mockHandler{errToReturn: errors.New("internal not found handler error")}
 
 	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/nonexistent", nil)
-	rr := httptest.NewRecorder()
+	recorder := httptest.NewRecorder()
 
-	router.ServeHTTP(rr, req)
+	router.ServeHTTP(recorder, req)
 
-	assert.Equal(t, http.StatusInternalServerError, rr.Code, "Status code mismatch")
+	assert.Equal(t, http.StatusInternalServerError, recorder.Code, "Status code mismatch")
 }
 
 func BenchmarkServeHTTPWithoutParams(b *testing.B) {
@@ -454,12 +512,10 @@ func BenchmarkServeHTTPWithoutParams(b *testing.B) {
 }
 
 func BenchmarkServeHTTPWithParams(b *testing.B) {
-	router := httprouter.New()
+	router := httprouter.New(httprouter.NewRegexRouteFactory())
 
-	// Define routes here
 	router.Get("/sample/{id:\\d+}", &mockHandler{})
 	router.Get("/example/{id:\\d+}", &mockHandler{})
-	// ...
 
 	// Create a sample HTTP request for benchmarking
 	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/sample/123", nil)
