@@ -1,7 +1,6 @@
 package httprouter
 
 import (
-	"context"
 	"net/http"
 	"regexp"
 )
@@ -12,13 +11,14 @@ type RegexRoute struct {
 	Regexp  *regexp.Regexp
 }
 
-func (regexRoute *RegexRoute) Match(request *http.Request) (Handler, error) {
+func (regexRoute *RegexRoute) Match(request *http.Request) (RouteMatch, error) {
+	var routeMatch RouteMatch
 	if !regexRoute.Regexp.MatchString(request.URL.Path) {
-		return nil, ErrPathMismatch
+		return routeMatch, ErrPathMismatch
 	}
 
 	if !contains(regexRoute.Methods, request.Method) {
-		return nil, ErrMethodNotAllowed
+		return routeMatch, ErrMethodNotAllowed
 	}
 
 	matches := regexRoute.Regexp.FindAllStringSubmatch(request.URL.Path, -1)
@@ -27,11 +27,14 @@ func (regexRoute *RegexRoute) Match(request *http.Request) (Handler, error) {
 	routeParams := make(map[string]string, len(routeParamNames))
 
 	for paramKey, paramName := range routeParamNames {
+		if paramName == "" {
+			continue
+		}
 		routeParams[paramName] = matches[0][paramKey]
 	}
 
-	ctx := context.WithValue(request.Context(), routeParamsKey, routeParams)
-	*request = *request.WithContext(ctx)
+	routeMatch.Handler = regexRoute.Handler
+	routeMatch.Params = routeParams
 
-	return regexRoute.Handler, nil
+	return routeMatch, nil
 }

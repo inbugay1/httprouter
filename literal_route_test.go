@@ -41,14 +41,14 @@ func TestLiteralRouteMatch(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 			recorder := httptest.NewRecorder()
-			matchHandler, err := route.Match(testCase.request)
+			routeMatch, err := route.Match(testCase.request)
 			if testCase.expectedErr != nil {
 				assert.ErrorIs(t, err, testCase.expectedErr)
-				assert.Nil(t, matchHandler)
+				assert.Empty(t, routeMatch, "RouteMatch should be empty")
 			} else {
 				assert.NoError(t, err)
-				assert.NotNil(t, matchHandler)
-				err = matchHandler.Handle(recorder, testCase.request)
+				assert.NotEmpty(t, routeMatch, "RouteMatch should not be empty")
+				err = routeMatch.Handler.Handle(recorder, testCase.request)
 				assert.NoError(t, err)
 				assert.Equal(t, testCase.expectedResp, recorder.Body.String())
 			}

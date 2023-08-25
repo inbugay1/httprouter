@@ -1,12 +1,13 @@
 package httprouter
 
 import (
+	"context"
 	"errors"
 	"net/http"
 )
 
 type Router interface {
-	Match(request *http.Request) (Handler, error)
+	Match(request *http.Request) (RouteMatch, error)
 
 	Get(path string, handler Handler)
 	Post(path string, handler Handler)
@@ -160,11 +161,12 @@ func (r *router) WithPrefix(prefix string) {
 	r.prefix = prefix
 }
 
-func (r *router) Match(request *http.Request) (Handler, error) { //nolint:ireturn
+func (r *router) Match(request *http.Request) (RouteMatch, error) { //nolint:ireturn
+	var routeMatch RouteMatch
 	var methodNotAllowed bool
 
 	for _, route := range r.routes {
-		handler, err := route.Match(request)
+		routeMatch, err := route.Match(request)
 		if err != nil {
 			switch {
 			case errors.Is(err, ErrPathMismatch):
@@ -175,23 +177,21 @@ func (r *router) Match(request *http.Request) (Handler, error) { //nolint:iretur
 				continue
 			}
 
-			return nil, err //nolint:wrapcheck
+			return routeMatch, err //nolint:wrapcheck
 		}
 
-		if handler != nil {
-			return handler, nil
-		}
+		return routeMatch, nil
 	}
 
 	if methodNotAllowed {
-		return nil, ErrMethodNotAllowed
+		return routeMatch, ErrMethodNotAllowed
 	}
 
-	return nil, ErrRouteNotFound
+	return routeMatch, ErrRouteNotFound
 }
 
 func (r *router) ServeHTTP(responseWriter http.ResponseWriter, request *http.Request) {
-	handler, err := r.Match(request)
+	routeMatch, err := r.Match(request)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrMethodNotAllowed):
@@ -211,7 +211,9 @@ func (r *router) ServeHTTP(responseWriter http.ResponseWriter, request *http.Req
 		return
 	}
 
-	err = handler.Handle(responseWriter, request)
+	ctx := context.WithValue(request.Context(), routeParamsKey, routeMatch.Params)
+
+	err = routeMatch.Handler.Handle(responseWriter, request.WithContext(ctx))
 	if err != nil {
 		http.Error(responseWriter, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 	}

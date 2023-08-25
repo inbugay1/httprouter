@@ -18,13 +18,13 @@ func TestRouteParam(t *testing.T) {
 	}{
 		{
 			name:           "ValidParam",
-			ctx:            context.WithValue(context.Background(), routeParamsKey, map[string]string{"id": "123"}),
+			ctx:            context.WithValue(context.Background(), routeParamsKey, RouteParams{"id": "123"}),
 			param:          "id",
 			expectedResult: "123",
 		},
 		{
 			name:           "InvalidParam",
-			ctx:            context.WithValue(context.Background(), routeParamsKey, map[string]string{"id": "123"}),
+			ctx:            context.WithValue(context.Background(), routeParamsKey, RouteParams{"id": "123"}),
 			param:          "name",
 			expectedResult: "",
 		},

@@ -8,14 +8,18 @@ type LiteralRoute struct {
 	Path    string
 }
 
-func (literalRoute *LiteralRoute) Match(request *http.Request) (Handler, error) {
+func (literalRoute *LiteralRoute) Match(request *http.Request) (RouteMatch, error) {
+	var routeMatch RouteMatch
+
 	if literalRoute.Path != request.URL.Path {
-		return nil, ErrPathMismatch
+		return routeMatch, ErrPathMismatch
 	}
 
 	if !contains(literalRoute.Methods, request.Method) {
-		return nil, ErrMethodNotAllowed
+		return routeMatch, ErrMethodNotAllowed
 	}
 
-	return literalRoute.Handler, nil
+	routeMatch.Handler = literalRoute.Handler
+
+	return routeMatch, nil
 }

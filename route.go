@@ -5,8 +5,15 @@ import (
 	"net/http"
 )
 
+type RouteParams map[string]string
+
+type RouteMatch struct {
+	Handler Handler
+	Params  RouteParams
+}
+
 type Route interface {
-	Match(request *http.Request) (Handler, error)
+	Match(request *http.Request) (RouteMatch, error)
 }
 
 type ctxKey int
@@ -14,7 +21,7 @@ type ctxKey int
 const routeParamsKey ctxKey = iota
 
 func RouteParam(ctx context.Context, param string) string {
-	routeParams, ok := ctx.Value(routeParamsKey).(map[string]string)
+	routeParams, ok := ctx.Value(routeParamsKey).(RouteParams)
 	if !ok {
 		return ""
 	}

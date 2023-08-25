@@ -48,8 +48,10 @@ type MockRoute struct {
 	ErrToReturn error
 }
 
-func (r *MockRoute) Match(_ *http.Request) (httprouter.Handler, error) {
-	return r.Handler, r.ErrToReturn
+func (r *MockRoute) Match(_ *http.Request) (httprouter.RouteMatch, error) {
+	return httprouter.RouteMatch{
+		Handler: r.Handler,
+	}, r.ErrToReturn
 }
 
 func TestRegisterRouteFactory(t *testing.T) {
@@ -140,10 +142,10 @@ func TestRouter_AllHTTPMethods(t *testing.T) {
 			t.Parallel()
 
 			req, _ := http.NewRequestWithContext(context.Background(), method, "/test-"+method, nil)
-			matchHandler, err := router.Match(req)
+			routeMatch, err := router.Match(req)
 
 			if assert.NoError(t, err, "Expected no error") {
-				assert.Equal(t, handlers[method], matchHandler, "Handler mismatch")
+				assert.Equal(t, handlers[method], routeMatch.Handler, "Handler mismatch")
 			}
 		})
 	}
@@ -164,15 +166,15 @@ func TestRouter_Any(t *testing.T) {
 
 	// Test the Path with GET and POST Methods
 	reqGet, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, path, nil)
-	matchHandlerGet, errGet := router.Match(reqGet)
+	routeMatchGet, errGet := router.Match(reqGet)
 	if assert.NoError(t, errGet, "Expected no error for GET") {
-		assert.Equal(t, handler, matchHandlerGet, "Handler mismatch for GET")
+		assert.Equal(t, handler, routeMatchGet.Handler, "Handler mismatch for GET")
 	}
 
 	reqPost, _ := http.NewRequestWithContext(context.Background(), http.MethodPost, path, nil)
-	matchHandlerPost, errPost := router.Match(reqPost)
+	routeMatchPost, errPost := router.Match(reqPost)
 	if assert.NoError(t, errPost, "Expected no error for POST") {
-		assert.Equal(t, handler, matchHandlerPost, "Handler mismatch for POST")
+		assert.Equal(t, handler, routeMatchPost.Handler, "Handler mismatch for POST")
 	}
 }
 
@@ -229,9 +231,9 @@ func TestRouter_Match_Handler(t *testing.T) {
 
 	request, _ := http.NewRequestWithContext(context.Background(), http.MethodPost, "/test", nil)
 
-	matchHandler, err := router.Match(request)
+	routeMatch, err := router.Match(request)
 	if assert.NoError(t, err) {
-		assert.Equal(t, handler, matchHandler, "Handler mismatch")
+		assert.Equal(t, handler, routeMatch.Handler, "Handler mismatch")
 	}
 }
 
@@ -247,10 +249,10 @@ func TestRouter_Group(t *testing.T) {
 	})
 
 	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/v1/test", nil)
-	matchHandler, err := router.Match(req)
+	routeMatch, err := router.Match(req)
 
 	if assert.NoError(t, err) {
-		assert.Equal(t, handler, matchHandler, "Handler mismatch")
+		assert.Equal(t, handler, routeMatch.Handler, "Handler mismatch")
 	}
 }
 
@@ -281,13 +283,13 @@ func TestRouter_Use(t *testing.T) {
 
 	// Test the route with the applied middleware
 	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
-	matchHandler, err := router.Match(req)
+	routeMatch, err := router.Match(req)
 
 	if assert.NoError(t, err, "Expected no error") {
-		assert.NotNil(t, matchHandler, "Matched handler should not be nil")
+		assert.NotNil(t, routeMatch, "Route match should not be nil")
 
 		// Call the Handle function to populate middlewareOrder slice
-		err := matchHandler.Handle(nil, req)
+		err := routeMatch.Handler.Handle(nil, req)
 		assert.NoError(t, err, "Expected no error")
 
 		// Verify the order of middleware execution
@@ -326,10 +328,10 @@ func TestRouter_GroupUse(t *testing.T) {
 	})
 
 	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/outside-route", nil)
-	matchHandler, err := router.Match(req)
+	routeMatch, err := router.Match(req)
 
 	if assert.NoError(t, err, "Expected no error") {
-		_ = matchHandler.Handle(nil, nil) // Trigger middleware execution
+		_ = routeMatch.Handler.Handle(nil, nil) // Trigger middleware execution
 
 		assert.Equal(t, []string{"OutsideMiddleware"}, middlewareOrder, "Middleware order mismatch")
 	}
@@ -337,10 +339,10 @@ func TestRouter_GroupUse(t *testing.T) {
 	middlewareOrder = nil // Reset middleware order
 
 	req, _ = http.NewRequestWithContext(context.Background(), http.MethodGet, "/group-route", nil)
-	matchHandler, err = router.Match(req)
+	routeMatch, err = router.Match(req)
 
 	if assert.NoError(t, err, "Expected no error") {
-		_ = matchHandler.Handle(nil, nil) // Trigger middleware execution
+		_ = routeMatch.Handler.Handle(nil, nil) // Trigger middleware execution
 
 		assert.Equal(t, []string{"OutsideMiddleware", "GroupMiddleware1", "GroupMiddleware2"}, middlewareOrder, "Middleware order mismatch")
 	}
@@ -359,10 +361,10 @@ func TestRouter_WithPrefix(t *testing.T) {
 
 	// Test the route with the applied prefix
 	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/api/test", nil)
-	matchHandler, err := router.Match(req)
+	routeMatch, err := router.Match(req)
 
 	if assert.NoError(t, err, "Expected no error") {
-		assert.NotNil(t, matchHandler, "Matched handler should not be nil")
+		assert.NotNil(t, routeMatch, "RouteMatch should not be nil")
 	}
 }
 
@@ -385,8 +387,8 @@ func TestRouter_GroupWithPrefix(t *testing.T) {
 
 	// Test routes with prefixes applied only to the respective groups and outside route
 	testCases := []struct {
-		path     string
-		expected bool
+		path        string
+		shouldMatch bool
 	}{
 		{"/outside/route1", true},
 		{"/outside/group1/route2", true},
@@ -402,14 +404,14 @@ func TestRouter_GroupWithPrefix(t *testing.T) {
 			t.Parallel()
 
 			req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, testCase.path, nil)
-			matchHandler, err := router.Match(req)
+			routeMatch, err := router.Match(req)
 
-			if testCase.expected {
+			if testCase.shouldMatch {
 				assert.NoError(t, err, "Expected no error")
-				assert.NotNil(t, matchHandler, "Matched handler should not be nil")
+				assert.NotEmpty(t, routeMatch, "RouteMatch should not be empty")
 			} else {
 				assert.Error(t, err, "Expected error")
-				assert.Nil(t, matchHandler, "Matched handler should be nil")
+				assert.Empty(t, routeMatch, "RouteMatch should be empty")
 			}
 		})
 	}
@@ -511,11 +513,29 @@ func BenchmarkServeHTTPWithoutParams(b *testing.B) {
 	}
 }
 
-func BenchmarkServeHTTPWithParams(b *testing.B) {
+func BenchmarkServeHTTPWithRegexParams(b *testing.B) {
 	router := httprouter.New(httprouter.NewRegexRouteFactory())
 
 	router.Get("/sample/{id:\\d+}", &mockHandler{})
 	router.Get("/example/{id:\\d+}", &mockHandler{})
+
+	// Create a sample HTTP request for benchmarking
+	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/sample/123", nil)
+	recorder := httptest.NewRecorder()
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		router.ServeHTTP(recorder, req)
+	}
+}
+
+func BenchmarkServeHTTPWithPlaceholderParams(b *testing.B) {
+	router := httprouter.New(httprouter.NewPlaceholderRouteFactory())
+
+	router.Get("/sample/:id", &mockHandler{})
+	router.Get("/example/:id", &mockHandler{})
 
 	// Create a sample HTTP request for benchmarking
 	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/sample/123", nil)

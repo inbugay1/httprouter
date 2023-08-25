@@ -1,7 +1,6 @@
 package httprouter_test
 
 import (
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
@@ -17,25 +16,24 @@ func TestRegexRoute(t *testing.T) {
 	route := &httprouter.RegexRoute{
 		Methods: []string{http.MethodGet},
 		Handler: httprouter.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
-			id := httprouter.RouteParam(r.Context(), "id")
-			fmt.Fprintf(w, "ID: %s!", id)
-
 			return nil
 		}),
 		Regexp: regexp.MustCompile(`^/test/(?P<id>\d+)$`),
 	}
 
 	testCases := []struct {
-		name         string
-		request      *http.Request
-		expectedResp string
-		expectedErr  error
+		name                string
+		request             *http.Request
+		expectedRouteParams httprouter.RouteParams
+		expectedErr         error
 	}{
 		{
-			name:         "Matching Path",
-			request:      httptest.NewRequest(http.MethodGet, "/test/123", nil),
-			expectedResp: "ID: 123!",
-			expectedErr:  nil,
+			name:    "Matching Path",
+			request: httptest.NewRequest(http.MethodGet, "/test/123", nil),
+			expectedRouteParams: httprouter.RouteParams{
+				"id": "123",
+			},
+			expectedErr: nil,
 		},
 		{
 			name:        "Mismatching Path",
@@ -54,16 +52,16 @@ func TestRegexRoute(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 			recorder := httptest.NewRecorder()
-			matchHandler, err := route.Match(testCase.request)
+			routeMatch, err := route.Match(testCase.request)
 			if testCase.expectedErr != nil {
 				assert.ErrorIs(t, err, testCase.expectedErr)
-				assert.Nil(t, matchHandler)
+				assert.Empty(t, routeMatch, "RouteMatch should be empty")
 			} else {
 				assert.NoError(t, err)
-				assert.NotNil(t, matchHandler)
-				err = matchHandler.Handle(recorder, testCase.request)
+				assert.NotEmpty(t, routeMatch, "RouteMatch should not be empty")
+				err = routeMatch.Handler.Handle(recorder, testCase.request)
 				assert.NoError(t, err)
-				assert.Equal(t, testCase.expectedResp, recorder.Body.String())
+				assert.Equal(t, testCase.expectedRouteParams, routeMatch.Params)
 			}
 		})
 	}

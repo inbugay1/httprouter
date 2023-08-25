@@ -33,28 +33,6 @@ It also implements net/http Handler interface and can be used as net/http server
 
 ## Examples
 
-### Route matching
-
-By default, router supports literal matching of the URI path with LiteralRoute.
-By registering RegexRouteFactory you can use RegexRoute that utilizes a regular expression to match against the URI
-path.
-
-````
-func main() {
-	router := httprouter.New(httprouter.NewRegexRouteFactory())
-    
-	helloHandler := func(responseWriter http.ResponseWriter, request *http.Request) error {
-	    _, _ = responseWriter.Write([]byte("Hello!"))
-	    
-		return nil
-	}
-
-	router.Get(`/hello/{name:[a-z]+}`, httprouter.HandlerFunc(helloHandler))
-
-	_ = http.ListenAndServe(":9015", router)
-}
-````
-
 ### Closure handler
 
 ````
@@ -359,18 +337,11 @@ Sometimes you want to group routes and apply a common prefix to them to avoid it
 
 ````
 func main() {
-	router := httprouter.New(httprouter.NewRegexRouteFactory())
+	router := httprouter.New()
     
 	listHandler := httprouter.HandlerFunc(
 		func(responseWriter http.ResponseWriter, request *http.Request) error {
 			_, _ = responseWriter.Write([]byte("users list"))
-
-			return nil
-		})
-
-	showHandler := httprouter.HandlerFunc(
-		func(responseWriter http.ResponseWriter, request *http.Request) error {
-			_, _ = responseWriter.Write([]byte("user " + httprouter.RouteParam(request.Context(), "id")))
 
 			return nil
 		})
@@ -387,7 +358,6 @@ func main() {
 	router.Group(func(router httprouter.Router) {
 		router.WithPrefix("users")
 
-		router.Get(`/{id:\d+}`, showHandler) // GET http://localhost:9015/api/users/1
 		router.Post("", createHandler) // POST http://localhost:9015/api/users
 		router.Get("", listHandler)  // GET http://localhost:9015/api/users
 	})
@@ -424,9 +394,11 @@ func main() {
 }
 ````
 
-### RouteParam
+### Regex Route
 
-HTTP router supports parameterized routes
+By default, router supports literal matching of the URI path with LiteralRoute.
+By registering RegexRouteFactory you can use RegexRoute that utilizes a regular expression to match against the URI
+path.
 
 ````
 func main() {
@@ -445,3 +417,28 @@ func main() {
 	_ = http.ListenAndServe(":9015", router)
 }
 ````
+
+### Placeholder Route
+
+If you do not need strong restrictions for route parameters you can register PlaceholderRouteFactory and use :paramName
+annotation.
+
+````
+func main() {
+	router := httprouter.New(httprouter.NewPlaceholderRouteFactory())
+    
+	helloHandler := func(responseWriter http.ResponseWriter, request *http.Request) error {
+		name := httprouter.RouteParam(request.Context(), "name")
+
+		_, _ = responseWriter.Write([]byte("Hello " + name + "!"))
+
+		return nil
+	}
+
+	router.Get(`/hello/:name`, httprouter.HandlerFunc(helloHandler))
+
+	_ = http.ListenAndServe(":9015", router)
+}
+````
+
+Note, that is not possible to mix regex and placeholder parameters in one route.
