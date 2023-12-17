@@ -18,9 +18,25 @@ func TestRegexRouteFactory(t *testing.T) {
 		shouldHandle    bool
 		expectedPattern string
 	}{
-		{path: "/test/{id:\\d+}", shouldHandle: true, expectedPattern: "^/test/(?P<id>\\d+)$"},
-		{path: "/test/{name:\\w+}/id/{id:\\d+}", shouldHandle: true, expectedPattern: "^/test/(?P<name>\\w+)/id/(?P<id>\\d+)$"},
-		{path: "/test/no/regex", shouldHandle: false},
+		{
+			path:            `/test/{id:\d+}`,
+			shouldHandle:    true,
+			expectedPattern: `^/test/(?P<id>\d+)$`,
+		},
+		{
+			path:            `/test/{name:\w+}/id/{id:\d+}`,
+			shouldHandle:    true,
+			expectedPattern: `^/test/(?P<name>\w+)/id/(?P<id>\d+)$`,
+		},
+		{
+			path:            `/some_path/{id:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}}/some_path2/{name:\w+}`,
+			shouldHandle:    true,
+			expectedPattern: `^/some_path/(?P<id>[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/some_path2/(?P<name>\w+)$`,
+		},
+		{
+			path:         "/test/no/regex",
+			shouldHandle: false,
+		},
 	}
 
 	for _, testCase := range testCases {

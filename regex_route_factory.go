@@ -8,7 +8,7 @@ type regexRouteFactory struct {
 
 func NewRegexRouteFactory() *regexRouteFactory { //nolint:golint,revive
 	return &regexRouteFactory{
-		regexp: regexp.MustCompile(`{(?P<param>\w+):(?P<regex>.+?)}`),
+		regexp: regexp.MustCompile(`{(?P<param>\w+):(?P<regex>[^/]+)}`),
 	}
 }
 
