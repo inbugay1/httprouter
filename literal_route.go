@@ -6,6 +6,7 @@ type LiteralRoute struct {
 	Methods []string
 	Handler Handler
 	Path    string
+	Name    string
 }
 
 func (literalRoute *LiteralRoute) Match(request *http.Request) (RouteMatch, error) {
@@ -20,6 +21,7 @@ func (literalRoute *LiteralRoute) Match(request *http.Request) (RouteMatch, erro
 	}
 
 	routeMatch.Handler = literalRoute.Handler
+	routeMatch.RouteName = literalRoute.Name
 
 	return routeMatch, nil
 }

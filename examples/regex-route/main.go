@@ -17,7 +17,7 @@ func main() {
 		return nil
 	}
 
-	router.Get(`/hello/{name:[a-z]+}`, httprouter.HandlerFunc(helloHandler))
+	router.Get(`/hello/{name:[a-z]+}`, httprouter.HandlerFunc(helloHandler), "")
 
 	_ = http.ListenAndServe(":9015", router)
 }

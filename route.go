@@ -8,8 +8,9 @@ import (
 type RouteParams map[string]string
 
 type RouteMatch struct {
-	Handler Handler
-	Params  RouteParams
+	Handler   Handler
+	Params    RouteParams
+	RouteName string
 }
 
 type Route interface {
@@ -18,7 +19,10 @@ type Route interface {
 
 type ctxKey int
 
-const routeParamsKey ctxKey = iota
+const (
+	routeParamsKey ctxKey = iota
+	routeNameKey
+)
 
 func RouteParam(ctx context.Context, param string) string {
 	routeParams, ok := ctx.Value(routeParamsKey).(RouteParams)
@@ -27,6 +31,15 @@ func RouteParam(ctx context.Context, param string) string {
 	}
 
 	return routeParams[param]
+}
+
+func RouteName(ctx context.Context) string {
+	routeName, ok := ctx.Value(routeNameKey).(string)
+	if !ok {
+		return ""
+	}
+
+	return routeName
 }
 
 func contains(s []string, e string) bool {

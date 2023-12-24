@@ -7,6 +7,7 @@ import (
 type PlaceholderRoute struct {
 	Methods []string
 	Tree    *tree
+	Name    string
 }
 
 func (route *PlaceholderRoute) Match(request *http.Request) (RouteMatch, error) {
@@ -23,6 +24,7 @@ func (route *PlaceholderRoute) Match(request *http.Request) (RouteMatch, error) 
 
 	routeMatch.Handler = handler
 	routeMatch.Params = params
+	routeMatch.RouteName = route.Name
 
 	return routeMatch, nil
 }

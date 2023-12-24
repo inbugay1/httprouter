@@ -9,16 +9,16 @@ import (
 type Router interface {
 	Match(request *http.Request) (RouteMatch, error)
 
-	Get(path string, handler Handler)
-	Post(path string, handler Handler)
-	Put(path string, handler Handler)
-	Delete(path string, handler Handler)
-	Patch(path string, handler Handler)
-	Options(path string, handler Handler)
-	Head(path string, handler Handler)
-	Connect(path string, handler Handler)
-	Trace(path string, handler Handler)
-	Any(path string, methods []string, handler Handler)
+	Get(path string, handler Handler, routeName string)
+	Post(path string, handler Handler, routeName string)
+	Put(path string, handler Handler, routeName string)
+	Delete(path string, handler Handler, routeName string)
+	Patch(path string, handler Handler, routeName string)
+	Options(path string, handler Handler, routeName string)
+	Head(path string, handler Handler, routeName string)
+	Connect(path string, handler Handler, routeName string)
+	Trace(path string, handler Handler, routeName string)
+	Any(path string, methods []string, handler Handler, routeName string)
 
 	Group(callback func(r Router))
 	Use(middlewares ...MiddlewareFunc)
@@ -59,7 +59,7 @@ func (r *router) registerRouteFactory(routeFactory RouteFactory) {
 	r.routeFactories = append(r.routeFactories, routeFactory)
 }
 
-func (r *router) route(path string, methods []string, handler Handler) {
+func (r *router) route(path string, methods []string, handler Handler, routeName string) {
 	if r.middleware != nil {
 		handler = r.middleware(handler)
 	}
@@ -70,7 +70,7 @@ func (r *router) route(path string, methods []string, handler Handler) {
 
 	for _, routeFactory := range r.routeFactories {
 		if routeFactory.Handles(path) {
-			route := routeFactory.CreateRoute(path, methods, handler)
+			route := routeFactory.CreateRoute(path, methods, handler, routeName)
 			r.routes = append(r.routes, route)
 
 			return
@@ -78,44 +78,44 @@ func (r *router) route(path string, methods []string, handler Handler) {
 	}
 }
 
-func (r *router) Get(path string, handler Handler) {
-	r.route(path, []string{http.MethodGet}, handler)
+func (r *router) Get(path string, handler Handler, routeName string) {
+	r.route(path, []string{http.MethodGet}, handler, routeName)
 }
 
-func (r *router) Post(path string, handler Handler) {
-	r.route(path, []string{http.MethodPost}, handler)
+func (r *router) Post(path string, handler Handler, routeName string) {
+	r.route(path, []string{http.MethodPost}, handler, routeName)
 }
 
-func (r *router) Put(path string, handler Handler) {
-	r.route(path, []string{http.MethodPut}, handler)
+func (r *router) Put(path string, handler Handler, routeName string) {
+	r.route(path, []string{http.MethodPut}, handler, routeName)
 }
 
-func (r *router) Patch(path string, handler Handler) {
-	r.route(path, []string{http.MethodPatch}, handler)
+func (r *router) Patch(path string, handler Handler, routeName string) {
+	r.route(path, []string{http.MethodPatch}, handler, routeName)
 }
 
-func (r *router) Delete(path string, handler Handler) {
-	r.route(path, []string{http.MethodDelete}, handler)
+func (r *router) Delete(path string, handler Handler, routeName string) {
+	r.route(path, []string{http.MethodDelete}, handler, routeName)
 }
 
-func (r *router) Options(path string, handler Handler) {
-	r.route(path, []string{http.MethodOptions}, handler)
+func (r *router) Options(path string, handler Handler, routeName string) {
+	r.route(path, []string{http.MethodOptions}, handler, routeName)
 }
 
-func (r *router) Head(path string, handler Handler) {
-	r.route(path, []string{http.MethodHead}, handler)
+func (r *router) Head(path string, handler Handler, routeName string) {
+	r.route(path, []string{http.MethodHead}, handler, routeName)
 }
 
-func (r *router) Connect(path string, handler Handler) {
-	r.route(path, []string{http.MethodConnect}, handler)
+func (r *router) Connect(path string, handler Handler, routeName string) {
+	r.route(path, []string{http.MethodConnect}, handler, routeName)
 }
 
-func (r *router) Trace(path string, handler Handler) {
-	r.route(path, []string{http.MethodTrace}, handler)
+func (r *router) Trace(path string, handler Handler, routeName string) {
+	r.route(path, []string{http.MethodTrace}, handler, routeName)
 }
 
-func (r *router) Any(path string, methods []string, handler Handler) {
-	r.route(path, methods, handler)
+func (r *router) Any(path string, methods []string, handler Handler, routeName string) {
+	r.route(path, methods, handler, routeName)
 }
 
 func (r *router) Group(callback func(r Router)) {
@@ -212,6 +212,7 @@ func (r *router) ServeHTTP(responseWriter http.ResponseWriter, request *http.Req
 	}
 
 	ctx := context.WithValue(request.Context(), routeParamsKey, routeMatch.Params)
+	ctx = context.WithValue(ctx, routeNameKey, routeMatch.RouteName)
 
 	err = routeMatch.Handler.Handle(responseWriter, request.WithContext(ctx))
 	if err != nil {

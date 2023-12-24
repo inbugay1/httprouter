@@ -23,7 +23,7 @@ func main() {
 		return nil
 	}
 
-	router.Get("/hello", httprouter.HandlerFunc(helloHandler))
+	router.Get("/hello", httprouter.HandlerFunc(helloHandler), "")
 
 	_ = http.ListenAndServe(":9015", router)
 }

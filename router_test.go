@@ -35,16 +35,17 @@ func (m *MockRouteFactory) Handles(_ string) bool {
 	return true
 }
 
-func (m *MockRouteFactory) CreateRoute(path string, methods []string, handler httprouter.Handler) httprouter.Route {
+func (m *MockRouteFactory) CreateRoute(path string, methods []string, handler httprouter.Handler, routeName string) httprouter.Route {
 	m.CalledCreateRoute = true
 
-	return &MockRoute{Path: path, Methods: methods, Handler: handler, ErrToReturn: m.MockRouteErr}
+	return &MockRoute{Path: path, Methods: methods, Handler: handler, Name: routeName, ErrToReturn: m.MockRouteErr}
 }
 
 type MockRoute struct {
 	Path        string
 	Methods     []string
 	Handler     httprouter.Handler
+	Name        string
 	ErrToReturn error
 }
 
@@ -68,7 +69,7 @@ func TestRegisterRouteFactory(t *testing.T) {
 		return nil
 	})
 
-	router.Get("/test", handler)
+	router.Get("/test", handler, "")
 
 	// Assert that the mockFactory methods were called.
 	assert.True(t, mockRouteFactory.CalledHandles, "Expected Handles method to be called")
@@ -97,7 +98,7 @@ func TestRouter_AllHTTPMethods(t *testing.T) {
 		http.MethodTrace,
 	}
 
-	getRouteMethodFunction := func(router httprouter.Router, method string) func(string, httprouter.Handler) {
+	getRouteMethodFunction := func(router httprouter.Router, method string) func(string, httprouter.Handler, string) {
 		switch method {
 		case http.MethodGet:
 			return router.Get
@@ -132,7 +133,7 @@ func TestRouter_AllHTTPMethods(t *testing.T) {
 
 		handler := &mockHandler{}
 		handlers[method] = handler
-		routeMethod(route, handler)
+		routeMethod(route, handler, "")
 	}
 
 	for _, method := range methods {
@@ -162,7 +163,7 @@ func TestRouter_Any(t *testing.T) {
 	path := "/test"
 
 	// Add the route using the Any method
-	router.Any(path, []string{http.MethodGet, http.MethodPost}, handler)
+	router.Any(path, []string{http.MethodGet, http.MethodPost}, handler, "")
 
 	// Test the Path with GET and POST Methods
 	reqGet, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, path, nil)
@@ -194,7 +195,7 @@ func TestRouter_Match_MethodNotAllowed(t *testing.T) {
 
 	router := httprouter.New()
 
-	router.Get("/test", &mockHandler{})
+	router.Get("/test", &mockHandler{}, "")
 
 	request, _ := http.NewRequestWithContext(context.Background(), http.MethodPost, "/test", nil)
 
@@ -212,7 +213,7 @@ func TestRouter_Match_Error(t *testing.T) {
 	}
 	router := httprouter.New(mockRouteFactory)
 
-	router.Get("/test", &mockHandler{})
+	router.Get("/test", &mockHandler{}, "")
 
 	request, _ := http.NewRequestWithContext(context.Background(), http.MethodPost, "/test", nil)
 
@@ -227,7 +228,7 @@ func TestRouter_Match_Handler(t *testing.T) {
 
 	router := httprouter.New(&MockRouteFactory{})
 
-	router.Get("/test", handler)
+	router.Get("/test", handler, "")
 
 	request, _ := http.NewRequestWithContext(context.Background(), http.MethodPost, "/test", nil)
 
@@ -245,7 +246,7 @@ func TestRouter_Group(t *testing.T) {
 	handler := &mockHandler{}
 	router.Group(func(group httprouter.Router) {
 		group.WithPrefix("v1")
-		group.Get("/test", handler)
+		group.Get("/test", handler, "")
 	})
 
 	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/v1/test", nil)
@@ -279,7 +280,7 @@ func TestRouter_Use(t *testing.T) {
 	router.Use(recordMiddleware("middleware1"), recordMiddleware("middleware2"))
 
 	// Add the route using the Get method
-	router.Get("/test", handler)
+	router.Get("/test", handler, "")
 
 	// Test the route with the applied middleware
 	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
@@ -319,12 +320,12 @@ func TestRouter_GroupUse(t *testing.T) {
 
 	// Add a route outside the group with its own middleware
 	router.Use(recordMiddleware("OutsideMiddleware"))
-	router.Get("/outside-route", handler)
+	router.Get("/outside-route", handler, "")
 
 	// Create a route group with middleware
 	router.Group(func(group httprouter.Router) {
 		group.Use(recordMiddleware("GroupMiddleware1"), recordMiddleware("GroupMiddleware2"))
-		group.Get("/group-route", handler)
+		group.Get("/group-route", handler, "")
 	})
 
 	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/outside-route", nil)
@@ -357,7 +358,7 @@ func TestRouter_WithPrefix(t *testing.T) {
 
 	// Add a route with a prefix using the WithPrefix method
 	router.WithPrefix("api")
-	router.Get("/test", handler)
+	router.Get("/test", handler, "")
 
 	// Test the route with the applied prefix
 	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/api/test", nil)
@@ -377,12 +378,12 @@ func TestRouter_GroupWithPrefix(t *testing.T) {
 
 	// Add a route outside the group with its own prefix
 	router.WithPrefix("outside")
-	router.Get("/route1", handler)
+	router.Get("/route1", handler, "")
 
 	// Create a route group with a specific prefix
 	router.Group(func(group httprouter.Router) {
 		group.WithPrefix("group1")
-		group.Get("/route2", handler)
+		group.Get("/route2", handler, "")
 	})
 
 	// Test routes with prefixes applied only to the respective groups and outside route
@@ -423,7 +424,7 @@ func TestRouter_ServeHTTP_MethodNotAllowed(t *testing.T) {
 	router := httprouter.New()
 
 	handler := &mockHandler{}
-	router.Get("/test", handler)
+	router.Get("/test", handler, "")
 
 	req, _ := http.NewRequestWithContext(context.Background(), http.MethodPost, "/test", nil)
 	recorder := httptest.NewRecorder()
@@ -439,7 +440,7 @@ func TestRouter_ServeHTTP_RouteFound(t *testing.T) {
 	router := httprouter.New()
 
 	handler := &mockHandler{}
-	router.Get("/test", handler)
+	router.Get("/test", handler, "")
 
 	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
@@ -468,7 +469,7 @@ func TestRouter_ServeHTTP_InternalServerError_HandlerError(t *testing.T) {
 	router := httprouter.New()
 
 	handler := &mockHandler{errToReturn: errors.New("internal handler error")}
-	router.Get("/test", handler)
+	router.Get("/test", handler, "")
 
 	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
@@ -497,8 +498,8 @@ func BenchmarkServeHTTPWithoutParams(b *testing.B) {
 	router := httprouter.New()
 
 	// Define routes here
-	router.Get("/sample", &mockHandler{})
-	router.Get("/example", &mockHandler{})
+	router.Get("/sample", &mockHandler{}, "")
+	router.Get("/example", &mockHandler{}, "")
 	// ...
 
 	// Create a sample HTTP request for benchmarking
@@ -516,8 +517,8 @@ func BenchmarkServeHTTPWithoutParams(b *testing.B) {
 func BenchmarkServeHTTPWithRegexParams(b *testing.B) {
 	router := httprouter.New(httprouter.NewRegexRouteFactory())
 
-	router.Get("/sample/{id:\\d+}", &mockHandler{})
-	router.Get("/example/{id:\\d+}", &mockHandler{})
+	router.Get("/sample/{id:\\d+}", &mockHandler{}, "")
+	router.Get("/example/{id:\\d+}", &mockHandler{}, "")
 
 	// Create a sample HTTP request for benchmarking
 	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/sample/123", nil)
@@ -534,8 +535,8 @@ func BenchmarkServeHTTPWithRegexParams(b *testing.B) {
 func BenchmarkServeHTTPWithPlaceholderParams(b *testing.B) {
 	router := httprouter.New(httprouter.NewPlaceholderRouteFactory())
 
-	router.Get("/sample/:id", &mockHandler{})
-	router.Get("/example/:id", &mockHandler{})
+	router.Get("/sample/:id", &mockHandler{}, "")
+	router.Get("/example/:id", &mockHandler{}, "")
 
 	// Create a sample HTTP request for benchmarking
 	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/sample/123", nil)

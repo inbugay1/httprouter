@@ -30,7 +30,7 @@ func main() {
 		return httprouter.HandlerFunc(handler)
 	}
 
-	router.Get("/hello", worldMiddleware(helloHandler))
+	router.Get("/hello", worldMiddleware(helloHandler), "")
 
 	_ = http.ListenAndServe(":9015", router)
 }

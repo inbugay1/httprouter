@@ -39,8 +39,8 @@ func main() {
 
 	router.Use(worldMiddleware)
 
-	router.Get("/hello", helloHandler)
-	router.Get("/goodbye", goodbyeHandler)
+	router.Get("/hello", helloHandler, "")
+	router.Get("/goodbye", goodbyeHandler, "")
 
 	_ = http.ListenAndServe(":9015", router)
 }

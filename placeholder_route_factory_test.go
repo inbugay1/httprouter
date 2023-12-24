@@ -42,7 +42,7 @@ func TestPlaceholderRouteFactory(t *testing.T) {
 				handler := &mockHandler{}
 				methods := []string{"GET", "POST"}
 
-				route := factory.CreateRoute("/path/to/:id", methods, handler)
+				route := factory.CreateRoute("/path/to/:id", methods, handler, "")
 
 				assert.IsType(t, &httprouter.PlaceholderRoute{}, route)
 				placeholderRoute := route.(*httprouter.PlaceholderRoute)

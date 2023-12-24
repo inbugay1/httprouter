@@ -35,9 +35,9 @@ func main() {
 	router.Group(func(router httprouter.Router) {
 		router.WithPrefix("users")
 
-		router.Get(`/{id:\d+}`, showHandler) // GET http://localhost:9015/api/users/1
-		router.Post("", createHandler)       // POST http://localhost:9015/api/users
-		router.Get("", listHandler)          // GET http://localhost:9015/api/users
+		router.Get(`/{id:\d+}`, showHandler, "") // GET http://localhost:9015/api/users/1
+		router.Post("", createHandler, "")       // POST http://localhost:9015/api/users
+		router.Get("", listHandler, "")          // GET http://localhost:9015/api/users
 	})
 
 	_ = http.ListenAndServe(":9015", router)

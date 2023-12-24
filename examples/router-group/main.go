@@ -40,8 +40,8 @@ func main() {
 	router.Group(func(router httprouter.Router) {
 		router.Use(worldMiddleware)
 
-		router.Get("/hello", helloHandler)
-		router.Get("/goodbye", goodbyeHandler)
+		router.Get("/hello", helloHandler, "")
+		router.Get("/goodbye", goodbyeHandler, "")
 	})
 
 	router.Get("/test", httprouter.HandlerFunc(
@@ -49,7 +49,7 @@ func main() {
 			_, _ = responseWriter.Write([]byte("Test"))
 
 			return nil
-		}))
+		}), "")
 
 	_ = http.ListenAndServe(":9015", router)
 }

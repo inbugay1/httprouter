@@ -9,6 +9,7 @@ type RegexRoute struct {
 	Methods []string
 	Handler Handler
 	Regexp  *regexp.Regexp
+	Name    string
 }
 
 func (regexRoute *RegexRoute) Match(request *http.Request) (RouteMatch, error) {
@@ -35,6 +36,7 @@ func (regexRoute *RegexRoute) Match(request *http.Request) (RouteMatch, error) {
 
 	routeMatch.Handler = regexRoute.Handler
 	routeMatch.Params = routeParams
+	routeMatch.RouteName = regexRoute.Name
 
 	return routeMatch, nil
 }

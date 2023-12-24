@@ -48,7 +48,7 @@ func TestRegexRouteFactory(t *testing.T) {
 			assert.Equal(t, testCase.shouldHandle, factory.Handles(testCase.path))
 
 			if testCase.shouldHandle {
-				route := factory.CreateRoute(testCase.path, nil, nil)
+				route := factory.CreateRoute(testCase.path, nil, nil, "")
 				regexRoute, ok := route.(*httprouter.RegexRoute)
 				assert.True(t, ok, "Expected route to be of type *RegexRoute")
 				assert.Equal(t, testCase.expectedPattern, regexRoute.Regexp.String())
